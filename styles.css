@@ -1333,6 +1333,50 @@ label {
     border-radius: var(--radius);
     overflow: hidden;
     background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.month-event-list {
+    padding: 8px;
+    font-size: 11px;
+    border-top: 1px solid var(--line);
+    flex: 1;
+    background: #fcfcfc;
+}
+
+.month-event-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+
+.event-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.event-date {
+    font-weight: 800;
+    color: var(--navy);
+    white-space: nowrap;
+}
+
+.event-text {
+    color: #334155;
+    word-break: break-word;
+}
+
+.month-event-more {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 4px;
 }
 
 .dashboard-month-card h3 {
@@ -1634,6 +1678,22 @@ label {
 .export-mode .month-calendar td {
     height: 26px;
     padding: 1px;
+}
+
+.export-mode .month-event-list {
+    padding: 4px 6px;
+    font-size: 9px;
+}
+
+.export-mode .month-event-item {
+    gap: 3px;
+    margin-bottom: 1px;
+}
+
+.export-mode .event-dot {
+    width: 4px;
+    height: 4px;
+    margin-top: 3px;
 }
 
 .export-mode .month-calendar .date-number {
