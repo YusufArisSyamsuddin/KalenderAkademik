@@ -6,9 +6,13 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Kalender Akademik Terpadu</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=20260525-01">
+    <title>Kalender Pendidikan - SMP N 2 Secang</title>
+    <link rel="icon" type="image/png" href="20231129_082316.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="styles.css?v=20260525-02">
 </head>
 <body>
     <script>
@@ -29,10 +33,12 @@
 
     <aside id="sidebar" class="sidebar">
         <div class="brand">
-            <div class="brand-mark"><i class="fa-solid fa-graduation-cap"></i></div>
+            <div class="brand-mark">
+                <img src="20231129_082316.png" alt="Logo Sekolah" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
             <div>
-                <h1>Kalender Akademik Terpadu</h1>
-                <p>Sistem Administrasi Pendidikan</p>
+                <h1>SMP N 2 SECANG</h1>
+                <p>Kalender Pendidikan</p>
             </div>
             <button type="button" class="icon-button sidebar-close" id="btn-close-sidebar" aria-label="Tutup menu">
                 <i class="fa-solid fa-chevron-left"></i>
@@ -117,6 +123,15 @@
             </section>
 
             <section id="view-efektif" class="view-section">
+                <div class="tool-surface no-export">
+                    <div class="toolbar-row">
+                        <div class="segmented" role="group" aria-label="Cakupan semester">
+                            <button type="button" class="segment active" data-efektif-scope="both">Semester I & II</button>
+                            <button type="button" class="segment" data-efektif-scope="semester1">Semester I</button>
+                            <button type="button" class="segment" data-efektif-scope="semester2">Semester II</button>
+                        </div>
+                    </div>
+                </div>
                 <article id="export-efektif" class="report-page">
                     <div class="report-title with-line">
                         <h2>ANALISIS ALOKASI WAKTU EFEKTIF</h2>
@@ -217,6 +232,8 @@
                         </select>
                         <label class="inline-field" for="filter-rekap-bulan">Bulan</label>
                         <select id="filter-rekap-bulan"></select>
+                        <label class="inline-field" for="filter-rekap-kategori">Kategori</label>
+                        <select id="filter-rekap-kategori"></select>
                     </div>
                 </div>
                 <article id="export-rekap" class="report-page">

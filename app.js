@@ -78,6 +78,7 @@ let currentDate = new Date(activeStartYear, 6, 1);
 let activeView = "dashboard";
 let dashboardMode = "month";
 let academicFormat = "model-b";
+let efektifScope = "both";
 let activeSettingsTab = "database";
 let sidebarCollapsed = false;
 let activeFilters = new Set(Object.keys(categories));
@@ -139,6 +140,7 @@ async function init() {
     setupFilters();
     setupCategoryOptions();
     populateRekapMonthFilter();
+    populateRekapCategoryFilter();
     restoreUiControls(savedState);
     populateSettingsForm();
     applySettingsToDOM();
@@ -289,7 +291,9 @@ function saveUiState() {
 }
 
 function resolveActiveStartYear(state = {}) {
-    return validStartYear(state.activeStartYear)
+    const stored = validStartYear(localStorage.getItem(ACTIVE_YEAR_KEY));
+    return stored
+        || validStartYear(state.activeStartYear)
         || validStartYear(settings.lastActiveStartYear)
         || getDefaultPeriodYear()
         || validStartYear(settings.startYear)
@@ -419,6 +423,18 @@ function bindStaticEvents() {
         saveUiState();
         renderRekapView();
     });
+    $("#filter-rekap-kategori").addEventListener("change", () => {
+        saveUiState();
+        renderRekapView();
+    });
+    $$(".segment[data-efektif-scope]").forEach((button) => {
+        button.addEventListener("click", () => {
+            efektifScope = button.dataset.efektifScope;
+            $$(".segment[data-efektif-scope]").forEach((item) => item.classList.toggle("active", item === button));
+            saveUiState();
+            renderEfektifView();
+        });
+    });
     $("#filter-rekap-bulan").addEventListener("change", () => {
         saveUiState();
         renderRekapView();
@@ -524,9 +540,22 @@ function setupFilters() {
 }
 
 function setupCategoryOptions() {
-    $("#event-type").innerHTML = Object.entries(categories).map(([key, category]) => (
+    const options = Object.entries(categories).map(([key, category]) => (
         `<option value="${key}">${escapeHtml(category.label)}</option>`
     )).join("");
+    $("#event-type").innerHTML = options;
+    populateRekapCategoryFilter();
+}
+
+function populateRekapCategoryFilter() {
+    const filter = $("#filter-rekap-kategori");
+    if (!filter) return;
+    const previous = filter.value || "all";
+    filter.innerHTML = [
+        `<option value="all">Semua Kategori</option>`,
+        ...Object.entries(categories).map(([key, cat]) => `<option value="${key}">${escapeHtml(cat.label)}</option>`)
+    ].join("");
+    if (filter.querySelector(`option[value="${previous}"]`)) filter.value = previous;
 }
 
 function setupYearSelectors() {
@@ -1053,14 +1082,19 @@ function renderEventMini(event) {
 function renderDashboardSummary(months) {
     const ranges = months.map((item) => getMonthRange(item.y, item.m));
     const relevant = database.events.filter((event) => ranges.some((range) => eventIntersectsRange(event, range.start, range.end)));
-    const nonEffective = relevant.filter((event) => event.isNonEffective).length;
-    const effective = relevant.length - nonEffective;
+    const nonEffectiveCount = relevant.filter((event) => event.isNonEffective).length;
+
+    // Calculate total effective weeks and JP
+    const semestersResult = hitungSemester(months);
+    const totalPekanEfektif = semestersResult.total.pekanEfektif;
+    const totalJP = totalPekanEfektif * settings.jamPerMinggu;
+
     return `
         <div class="metric-grid no-break no-export">
             <div class="metric-card"><span>Total Kegiatan</span><strong>${relevant.length}</strong></div>
-            <div class="metric-card"><span>Tetap KBM</span><strong>${effective}</strong></div>
-            <div class="metric-card"><span>Hari Tidak Efektif</span><strong>${nonEffective}</strong></div>
-            <div class="metric-card"><span>Hari Kerja</span><strong>${settings.workDays}</strong></div>
+            <div class="metric-card"><span>Pekan Efektif</span><strong>${totalPekanEfektif}</strong></div>
+            <div class="metric-card"><span>Total JP</span><strong>${totalJP}</strong></div>
+            <div class="metric-card"><span>Hari Tidak Efektif</span><strong>${nonEffectiveCount}</strong></div>
         </div>
         <div class="dashboard-export-summary export-only no-break">
             ${buildAcademicSummaryTable("table-dashboard-effective-summary")}
@@ -1267,12 +1301,16 @@ function buildLegend() {
 }
 
 function renderEfektifView() {
-    const semester1 = hitungSemester(getAcademicMonths("semester1"));
-    const semester2 = hitungSemester(getAcademicMonths("semester2"));
-    $("#export-efektif").innerHTML = [
-        buildEffectiveSheet("Ganjil", semester1, "#93c5fd", `${activeStartYear}-07-13`),
-        buildEffectiveSheet("Genap", semester2, "#fef08a", `${activeStartYear + 1}-01-02`)
-    ].join("");
+    const sheets = [];
+    if (efektifScope === "both" || efektifScope === "semester1") {
+        const semester1 = hitungSemester(getAcademicMonths("semester1"));
+        sheets.push(buildEffectiveSheet("Ganjil", semester1, "#93c5fd", `${activeStartYear}-07-13`));
+    }
+    if (efektifScope === "both" || efektifScope === "semester2") {
+        const semester2 = hitungSemester(getAcademicMonths("semester2"));
+        sheets.push(buildEffectiveSheet("Genap", semester2, "#fef08a", `${activeStartYear + 1}-01-02`));
+    }
+    $("#export-efektif").innerHTML = sheets.join("");
 }
 
 function buildEffectiveSheet(semesterName, result, accent, defaultDate) {
@@ -1431,12 +1469,17 @@ function renderRekapView() {
 function filterRekapEvents() {
     const semester = $("#filter-rekap-semester").value;
     const monthValue = $("#filter-rekap-bulan").value;
+    const categoryValue = $("#filter-rekap-kategori").value;
     let range = getAcademicRange(semester === "semester1" ? "semester1" : semester === "semester2" ? "semester2" : "year");
     if (monthValue !== "all") {
         const [year, month] = monthValue.split("-").map(Number);
         range = getMonthRange(year, month - 1);
     }
-    return getRangeEvents(range.start, range.end, true);
+    let filtered = getRangeEvents(range.start, range.end, true);
+    if (categoryValue !== "all") {
+        filtered = filtered.filter((event) => event.type === categoryValue);
+    }
+    return filtered;
 }
 
 function renderRekapRows(selector, rows, status) {
@@ -1912,15 +1955,15 @@ async function deleteCategory(key) {
 
 async function loadBundledDatabase() {
     try {
-        const response = await fetch("kalender_database.xlsx", { cache: "no-store" });
-        if (!response.ok) throw new Error("Database tidak ditemukan");
+        const url = new URL("kalender_database.xlsx", window.location.href).href;
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Database tidak ditemukan (Status: ${response.status})`);
         const buffer = await response.arrayBuffer();
-        // Return result of loadWorkbookBuffer
         return loadWorkbookBuffer(buffer, "kalender_database.xlsx", false);
     } catch (error) {
         console.warn("Bundled database not found or failed to load:", error);
         databaseMissingOnBoot = true;
-        updateDatabaseStatus("Database Excel tidak ditemukan", "dirty");
+        updateDatabaseStatus("Gagal memuat database otomatis", "dirty");
         return false;
     }
 }
