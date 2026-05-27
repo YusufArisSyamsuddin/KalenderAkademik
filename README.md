@@ -1,4 +1,4 @@
-# SiWaka - Kalender Pendidikan
+# Kalender Akademik SMP Negeri 2 Secang
 
 Aplikasi kalender pendidikan offline untuk menyusun kalender akademik, rekapitulasi kegiatan, dan analisis waktu efektif.
 
