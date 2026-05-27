@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Kalender Akademik Terpadu</title>
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=20260525-01">
+</head>
+<body>
+    <script>
+        (function () {
+            try {
+                var ui = JSON.parse(localStorage.getItem("siwaka.uiState.v4") || "{}");
+                var sidebarCollapsed = localStorage.getItem("siwaka.sidebarCollapsed.v1") === "true" || ui.sidebarCollapsed === true;
+                window.__SIWAKA_BOOT_STATE__ = {
+                    sidebarCollapsed: sidebarCollapsed
+                };
+                if (sidebarCollapsed && window.innerWidth > 820) document.body.classList.add("sidebar-collapsed");
+            } catch (error) {
+                window.__SIWAKA_BOOT_STATE__ = {};
+            }
+        }());
+    </script>
+    <div id="mobile-overlay" class="mobile-overlay" aria-hidden="true"></div>
+
+    <aside id="sidebar" class="sidebar">
+        <div class="brand">
+            <div class="brand-mark"><i class="fa-solid fa-graduation-cap"></i></div>
+            <div>
+                <h1>Kalender Akademik Terpadu</h1>
+                <p>Sistem Administrasi Pendidikan</p>
+            </div>
+            <button type="button" class="icon-button sidebar-close" id="btn-close-sidebar" aria-label="Tutup menu">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+        </div>
+
+        <nav class="navigation" aria-label="Menu utama">
+            <button type="button" class="nav-item active" data-view="dashboard"><i class="fa-solid fa-calendar-days"></i><span>Dashboard Kalender</span></button>
+            <button type="button" class="nav-item" data-view="akademik"><i class="fa-solid fa-table-cells-large"></i><span>Format Akademik</span></button>
+            <button type="button" class="nav-item" data-view="efektif"><i class="fa-solid fa-chart-pie"></i><span>Waktu Efektif</span></button>
+            <button type="button" class="nav-item" data-view="rekap"><i class="fa-solid fa-list-check"></i><span>Rekapitulasi</span></button>
+            <button type="button" class="nav-item nav-settings" data-view="settings"><i class="fa-solid fa-gear"></i><span>Pengaturan</span></button>
+        </nav>
+
+        <section class="sidebar-panel">
+            <div class="panel-heading">
+                <span>Filter Kategori</span>
+                <button type="button" id="btn-select-all-filters">Semua</button>
+            </div>
+            <div id="filter-container" class="filter-list"></div>
+        </section>
+    </aside>
+
+    <main class="app-shell">
+        <header class="topbar no-export">
+            <div class="topbar-left">
+                <button type="button" class="icon-button" id="btn-open-sidebar" aria-label="Buka menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div>
+                    <h2 id="header-title">Dashboard Kalender</h2>
+                    <p id="database-status">Database belum dimuat</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <label class="year-picker" for="header-year-selector">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <select id="header-year-selector" aria-label="Tahun pelajaran"></select>
+                </label>
+                <div id="header-actions" class="action-group"></div>
+            </div>
+        </header>
+
+        <section id="main-content" class="main-content">
+            <section id="view-dashboard" class="view-section active">
+                <div class="tool-surface no-export">
+                    <div class="toolbar-row">
+                        <div class="segmented" role="group" aria-label="Tampilan dashboard">
+                            <button type="button" class="segment active" data-dashboard-mode="month">Bulanan</button>
+                            <button type="button" class="segment" data-dashboard-mode="semester1">Semester I</button>
+                            <button type="button" class="segment" data-dashboard-mode="semester2">Semester II</button>
+                            <button type="button" class="segment" data-dashboard-mode="year">1 Tahun</button>
+                        </div>
+                        <div class="calendar-nav" id="month-nav">
+                            <button type="button" class="icon-button bordered" id="btn-prev-month" aria-label="Bulan sebelumnya"><i class="fa-solid fa-chevron-left"></i></button>
+                            <strong id="current-month-year">Juli 2026</strong>
+                            <button type="button" class="icon-button bordered" id="btn-next-month" aria-label="Bulan berikutnya"><i class="fa-solid fa-chevron-right"></i></button>
+                            <button type="button" class="secondary-button" id="btn-today">Bulan Ini</button>
+                        </div>
+                    </div>
+                </div>
+                <article id="export-dashboard" class="report-page dashboard-report"></article>
+            </section>
+
+            <section id="view-akademik" class="view-section">
+                <div class="tool-surface no-export">
+                    <div class="toolbar-row">
+                        <div class="segmented" role="group" aria-label="Model format akademik">
+                            <button type="button" class="segment active" data-academic-format="model-b">Model B</button>
+                            <button type="button" class="segment" data-academic-format="model-c">Model C</button>
+                            <button type="button" class="segment" data-academic-format="all">Semua Format</button>
+                        </div>
+                        <label class="inline-field" for="academic-scope">Rentang</label>
+                        <select id="academic-scope">
+                            <option value="year">1 Tahun Pelajaran</option>
+                            <option value="semester1">Semester I</option>
+                            <option value="semester2">Semester II</option>
+                        </select>
+                    </div>
+                </div>
+                <article id="export-akademik" class="report-page akademik-report"></article>
+            </section>
+
+            <section id="view-efektif" class="view-section">
+                <article id="export-efektif" class="report-page">
+                    <div class="report-title with-line">
+                        <h2>ANALISIS ALOKASI WAKTU EFEKTIF</h2>
+                        <h3>TAHUN PELAJARAN <span class="academic-year-text"></span></h3>
+                    </div>
+                    <div class="identity-grid">
+                        <div><span>Nama Sekolah</span><strong class="school-name-text"></strong></div>
+                        <div><span>Mata Pelajaran</span><strong class="subject-name-text"></strong></div>
+                        <div><span>Jumlah Hari Kerja</span><strong><span class="work-days-text"></span> hari/minggu</strong></div>
+                        <div><span>Alokasi Jam Pelajaran</span><strong><span class="jam-per-minggu-text"></span> JP/minggu</strong></div>
+                        <div><span>Guru Pengampu</span><strong class="teacher-name-text"></strong></div>
+                        <div><span>NIP Guru</span><strong class="teacher-nip-text"></strong></div>
+                    </div>
+
+                    <div id="efektif-summary" class="metric-grid"></div>
+
+                    <h3 class="section-label">A. Perhitungan Semester I</h3>
+                    <div class="table-scroll">
+                        <table id="table-efektif-ganjil" class="report-table efektif-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">No</th>
+                                    <th rowspan="2">Bulan</th>
+                                    <th colspan="2">Waktu Tersedia</th>
+                                    <th colspan="3">Waktu Tidak Efektif</th>
+                                    <th colspan="3">Waktu Efektif</th>
+                                </tr>
+                                <tr>
+                                    <th>Pekan</th>
+                                    <th>Hari Kerja</th>
+                                    <th>Hari Libur</th>
+                                    <th>Kegiatan</th>
+                                    <th>Pekan</th>
+                                    <th>Pekan</th>
+                                    <th>Hari</th>
+                                    <th>Jam</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                            <tfoot></tfoot>
+                        </table>
+                    </div>
+
+                    <h3 class="section-label">B. Perhitungan Semester II</h3>
+                    <div class="table-scroll">
+                        <table id="table-efektif-genap" class="report-table efektif-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">No</th>
+                                    <th rowspan="2">Bulan</th>
+                                    <th colspan="2">Waktu Tersedia</th>
+                                    <th colspan="3">Waktu Tidak Efektif</th>
+                                    <th colspan="3">Waktu Efektif</th>
+                                </tr>
+                                <tr>
+                                    <th>Pekan</th>
+                                    <th>Hari Kerja</th>
+                                    <th>Hari Libur</th>
+                                    <th>Kegiatan</th>
+                                    <th>Pekan</th>
+                                    <th>Pekan</th>
+                                    <th>Hari</th>
+                                    <th>Jam</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                            <tfoot></tfoot>
+                        </table>
+                    </div>
+
+                    <div class="signature-row">
+                        <div class="signature-block">
+                            <p>Mengetahui,</p>
+                            <p>Kepala Sekolah</p>
+                            <div class="signature-space"></div>
+                            <p class="signature-name headmaster-name-text"></p>
+                            <p>NIP. <span class="headmaster-nip-text"></span></p>
+                        </div>
+                        <div class="signature-block">
+                            <p><span class="ttd-place-date"></span></p>
+                            <p>Guru Mata Pelajaran</p>
+                            <div class="signature-space"></div>
+                            <p class="signature-name teacher-name-text"></p>
+                            <p>NIP. <span class="teacher-nip-text"></span></p>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <section id="view-rekap" class="view-section">
+                <div class="tool-surface no-export">
+                    <div class="toolbar-row">
+                        <label class="inline-field" for="filter-rekap-semester">Semester</label>
+                        <select id="filter-rekap-semester">
+                            <option value="all">Semua Semester</option>
+                            <option value="semester1">Semester I</option>
+                            <option value="semester2">Semester II</option>
+                        </select>
+                        <label class="inline-field" for="filter-rekap-bulan">Bulan</label>
+                        <select id="filter-rekap-bulan"></select>
+                    </div>
+                </div>
+                <article id="export-rekap" class="report-page">
+                    <div class="report-title">
+                        <h2>REKAPITULASI KEGIATAN DAN HARI LIBUR</h2>
+                        <h3>TAHUN PELAJARAN <span class="academic-year-text"></span></h3>
+                    </div>
+
+                    <h3 class="section-label">A. Kegiatan Tetap KBM</h3>
+                    <div class="table-scroll">
+                        <table id="table-rekap-effective" class="report-table rekap-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama Kegiatan</th>
+                                    <th>Tanggal Mulai</th>
+                                    <th>Tanggal Berakhir</th>
+                                    <th>Durasi</th>
+                                    <th>Kategori</th>
+                                    <th>Status KBM</th>
+                                    <th class="no-export">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="section-label danger">B. Hari Tidak Efektif KBM</h3>
+                    <div class="table-scroll">
+                        <table id="table-rekap-non-effective" class="report-table rekap-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama Kegiatan / Hari Libur</th>
+                                    <th>Tanggal Mulai</th>
+                                    <th>Tanggal Berakhir</th>
+                                    <th>Durasi</th>
+                                    <th>Kategori</th>
+                                    <th>Status KBM</th>
+                                    <th class="no-export">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <div class="signature-row">
+                        <div class="signature-block"></div>
+                        <div class="signature-block">
+                            <p><span class="ttd-place-date"></span></p>
+                            <p>Kepala Sekolah</p>
+                            <div class="signature-space"></div>
+                            <p class="signature-name headmaster-name-text"></p>
+                            <p>NIP. <span class="headmaster-nip-text"></span></p>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <section id="view-settings" class="view-section">
+                <article class="settings-page">
+                    <div class="tool-surface no-export">
+                        <div class="segmented settings-tabs" role="group" aria-label="Tab pengaturan">
+                            <button type="button" class="segment active" data-settings-tab="database">Database</button>
+                            <button type="button" class="segment" data-settings-tab="identity">Identitas & Kurikulum</button>
+                            <button type="button" class="segment" data-settings-tab="periods">Periode Pembelajaran</button>
+                            <button type="button" class="segment" data-settings-tab="categories">Kategori</button>
+                        </div>
+                    </div>
+
+                    <section class="settings-tab-panel active" id="settings-tab-database">
+                        <section class="settings-card">
+                            <div class="settings-heading">
+                                <div>
+                                    <h2>Database Excel</h2>
+                                    <p id="db-file-name">kalender_database.xlsx</p>
+                                </div>
+                                <span id="db-state-pill" class="state-pill">Memuat</span>
+                            </div>
+                            <div class="button-row">
+                                <button type="button" class="primary-button" id="btn-open-database"><i class="fa-solid fa-folder-open"></i> Buka Database</button>
+                                <button type="button" class="secondary-button" id="btn-save-database"><i class="fa-solid fa-floppy-disk"></i> Simpan Database</button>
+                                <button type="button" class="secondary-button" id="btn-download-database"><i class="fa-solid fa-file-arrow-down"></i> Unduh Database</button>
+                            </div>
+                            <input type="file" id="db-file-input" accept=".xlsx,.xls" hidden>
+                        </section>
+                    </section>
+
+                    <section class="settings-tab-panel" id="settings-tab-identity">
+                        <form id="settings-form" class="settings-card form-grid">
+                            <div class="settings-heading wide">
+                                <h2>Pengaturan Data Sekolah dan Kurikulum</h2>
+                            </div>
+
+                            <fieldset>
+                                <legend>Identitas Sekolah</legend>
+                                <label>Nama Sekolah
+                                    <input type="text" id="set-schoolName" required>
+                                </label>
+                                <label>Tahun Pelajaran Mulai
+                                    <select id="set-startYear"></select>
+                                </label>
+                                <label>Jenis Satuan Pendidikan
+                                    <select id="set-institutionType">
+                                        <option value="dinas">Dinas Pendidikan (SMP/SMA)</option>
+                                        <option value="kemenag">Kemenag (MTs/MAN)</option>
+                                        <option value="custom">Kustom</option>
+                                    </select>
+                                </label>
+                                <label>Jumlah Hari Kerja
+                                    <select id="set-workDays">
+                                        <option value="5">5 hari kerja</option>
+                                        <option value="6">6 hari kerja</option>
+                                    </select>
+                                </label>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>Mata Pelajaran</legend>
+                                <label>Mata Pelajaran
+                                    <input type="text" id="set-subjectName">
+                                </label>
+                                <label>Kelas
+                                    <input type="text" id="set-className" placeholder="Contoh: Kelas 8">
+                                </label>
+                                <label>Alokasi Jam Pelajaran / Minggu
+                                    <input type="number" min="1" max="60" id="set-jamPerMinggu">
+                                </label>
+                                <label>Guru Pengampu
+                                    <input type="text" id="set-teacherName">
+                                </label>
+                                <label>NIP Guru
+                                    <input type="text" id="set-teacherNip">
+                                </label>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>Tanda Tangan Dokumen</legend>
+                                <label>Nama Kepala Sekolah
+                                    <input type="text" id="set-headmasterName">
+                                </label>
+                                <label>NIP Kepala Sekolah
+                                    <input type="text" id="set-headmasterNip">
+                                </label>
+                                <label>Tempat Tanda Tangan
+                                    <input type="text" id="set-ttdPlace">
+                                </label>
+                                <label>Tanggal Tanda Tangan
+                                    <input type="date" id="set-ttdDate">
+                                </label>
+                            </fieldset>
+
+                            <div class="form-actions wide">
+                                <button type="submit" class="primary-button"><i class="fa-solid fa-check"></i> Simpan Pengaturan</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="settings-tab-panel" id="settings-tab-periods">
+                        <section class="settings-card">
+                            <div class="settings-heading">
+                                <div>
+                                    <h2>Periode Pembelajaran</h2>
+                                    <p>Kelola tahun pelajaran, salin kegiatan antarperiode, dan bersihkan periode yang tidak digunakan.</p>
+                                </div>
+                                <button type="button" class="primary-button" id="btn-add-period"><i class="fa-solid fa-plus"></i> Tambah Periode</button>
+                            </div>
+                            <div class="table-scroll">
+                                <table id="table-periods" class="report-table period-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tahun Pelajaran</th>
+                                            <th>Jumlah Kegiatan</th>
+                                            <th>Status</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </section>
+
+                    <section class="settings-tab-panel" id="settings-tab-categories">
+                        <section class="settings-card">
+                            <div class="settings-heading">
+                                <div>
+                                    <h2>Pengaturan Kategori</h2>
+                                    <p>Tambah, ubah, atau hapus kategori kegiatan yang tersimpan di database Excel.</p>
+                                </div>
+                                <button type="button" class="primary-button" id="btn-new-category"><i class="fa-solid fa-plus"></i> Tambah Kategori</button>
+                            </div>
+                            <div class="category-layout">
+                                <form id="category-form" class="category-form">
+                                    <input type="hidden" id="category-original-key">
+                                    <label>Kode Kategori
+                                        <input type="text" id="category-key" placeholder="contoh: raker" required>
+                                    </label>
+                                    <label>Nama Kategori
+                                        <input type="text" id="category-label" placeholder="Contoh: Rapat Kerja" required>
+                                    </label>
+                                    <label>Warna
+                                        <input type="color" id="category-color" value="#3b82f6">
+                                    </label>
+                                    <label>Warna Teks
+                                        <select id="category-text-color">
+                                            <option value="white">Putih</option>
+                                            <option value="black">Hitam</option>
+                                        </select>
+                                    </label>
+                                    <label class="check-row compact">
+                                        <input type="checkbox" id="category-default-non-effective">
+                                        <span>Default Hari Tidak Efektif KBM</span>
+                                    </label>
+                                    <div class="button-row">
+                                        <button type="submit" class="primary-button"><i class="fa-solid fa-floppy-disk"></i> Simpan Kategori</button>
+                                        <button type="button" class="secondary-button" id="btn-reset-category">Bersihkan</button>
+                                    </div>
+                                </form>
+                                <div class="table-scroll">
+                                    <table id="table-categories" class="report-table category-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Kode</th>
+                                                <th>Warna</th>
+                                                <th>Nama Kategori</th>
+                                                <th>Default KBM</th>
+                                                <th>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+                    </section>
+                </article>
+            </section>
+        </section>
+    </main>
+
+    <div id="event-modal" class="modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-head">
+                <h3 id="modal-title">Tambah Kegiatan</h3>
+                <button type="button" class="icon-button" id="btn-close-modal" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="event-form" class="event-form">
+                <input type="hidden" id="event-id">
+                <label>Nama Kegiatan
+                    <input type="text" id="event-title" required>
+                </label>
+                <div class="two-cols">
+                    <label>Tanggal Mulai
+                        <input type="date" id="event-start" required>
+                    </label>
+                    <label>Tanggal Berakhir
+                        <input type="date" id="event-end" required>
+                    </label>
+                </div>
+                <label>Kategori / Jenis Kegiatan
+                    <select id="event-type" required></select>
+                </label>
+                <label>Catatan
+                    <textarea id="event-notes" rows="3"></textarea>
+                </label>
+                <label class="check-row">
+                    <input type="checkbox" id="event-isNonEffective">
+                    <span>Masuk Hari Tidak Efektif KBM</span>
+                </label>
+                <div class="modal-actions">
+                    <button type="button" class="danger-button hidden" id="btn-delete-event"><i class="fa-solid fa-trash"></i> Hapus</button>
+                    <div class="modal-actions-right">
+                        <button type="button" class="secondary-button" id="btn-cancel-event">Batal</button>
+                        <button type="submit" class="primary-button"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="vendor/sweetalert2.all.min.js"></script>
+    <script src="vendor/xlsx.full.min.js"></script>
+    <script src="vendor/html2canvas.min.js"></script>
+    <script src="vendor/jspdf.umd.min.js"></script>
+    <script src="vendor/exceljs.min.js"></script>
+    <script src="vendor/docx.umd.js"></script>
+    <script src="app.js?v=20260525-01"></script>
+</body>
+</html>
