@@ -109,7 +109,10 @@ async function init() {
         loaded = await loadBundledDatabase();
         if (loaded) loadedSource = "bundled";
     }
-    if (loadedSource === "bundled") hydrateFromLocalSnapshotIfNewer();
+    if (loadedSource === "bundled") {
+        // Only hydrate from local if it's actually newer than what we have in bundled
+        hydrateFromLocalSnapshotIfNewer();
+    }
     if (!loaded) {
         loaded = loadLocalDataSnapshot();
         if (loaded) loadedSource = "local";
@@ -286,7 +289,9 @@ function saveUiState() {
 }
 
 function resolveActiveStartYear(state = {}) {
-    return getDefaultPeriodYear()
+    return validStartYear(state.activeStartYear)
+        || validStartYear(settings.lastActiveStartYear)
+        || getDefaultPeriodYear()
         || validStartYear(settings.startYear)
         || inferActiveStartYearFromEvents()
         || DEFAULT_SETTINGS.startYear;
@@ -999,6 +1004,28 @@ function renderMonthCard(year, month) {
         }
         rows.push(`<tr>${cells.join("")}</tr>`);
     }
+
+    const range = getMonthRange(year, month);
+    const monthEvents = getRangeEvents(range.start, range.end, true);
+    const eventListHtml = monthEvents.length > 0 ? `
+        <div class="month-event-list">
+            ${monthEvents.slice(0, 8).map((event) => {
+                const category = categories[event.type] || categories.lainnya;
+                const d1 = parseDate(event.start).getDate();
+                const d2 = parseDate(event.end).getDate();
+                const dateLabel = d1 === d2 ? `${d1}` : `${d1}-${d2}`;
+                return `
+                    <div class="month-event-item">
+                        <span class="event-dot" style="background:${category.color}"></span>
+                        <span class="event-date">${dateLabel}:</span>
+                        <span class="event-text">${escapeHtml(event.title)}</span>
+                    </div>
+                `;
+            }).join("")}
+            ${monthEvents.length > 8 ? `<div class="month-event-more">...dan ${monthEvents.length - 8} lainnya</div>` : ""}
+        </div>
+    ` : "";
+
     return `
         <section class="dashboard-month-card">
             <table class="month-calendar export-table">
@@ -1012,6 +1039,7 @@ function renderMonthCard(year, month) {
                 </thead>
                 <tbody>${rows.join("")}</tbody>
             </table>
+            ${eventListHtml}
         </section>
     `;
 }
@@ -1887,10 +1915,10 @@ async function loadBundledDatabase() {
         const response = await fetch("kalender_database.xlsx", { cache: "no-store" });
         if (!response.ok) throw new Error("Database tidak ditemukan");
         const buffer = await response.arrayBuffer();
-        loadWorkbookBuffer(buffer, "kalender_database.xlsx", false);
-        databaseMissingOnBoot = false;
-        return true;
+        // Return result of loadWorkbookBuffer
+        return loadWorkbookBuffer(buffer, "kalender_database.xlsx", false);
     } catch (error) {
+        console.warn("Bundled database not found or failed to load:", error);
         databaseMissingOnBoot = true;
         updateDatabaseStatus("Database Excel tidak ditemukan", "dirty");
         return false;
@@ -1931,11 +1959,14 @@ async function openDatabase() {
             });
             const file = await handle.getFile();
             const buffer = await file.arrayBuffer();
-            dbFileHandle = handle;
-            await storeDatabaseHandle(handle);
-            await verifyPermission(handle, true, true);
-            loadWorkbookBuffer(buffer, file.name);
-            toast("Database Excel dimuat");
+
+            const success = loadWorkbookBuffer(buffer, file.name);
+            if (success) {
+                dbFileHandle = handle;
+                await storeDatabaseHandle(handle);
+                await verifyPermission(handle, true, true);
+                toast("Database Excel dimuat");
+            }
             return;
         }
     } catch (error) {
@@ -1958,8 +1989,25 @@ async function loadDatabaseFromInput(event) {
 
 function loadWorkbookBuffer(buffer, fileName, rerender = true) {
     const savedState = loadUiState();
-    const workbook = XLSX.read(buffer, { type: "array" });
-    database = workbookToDatabase(workbook);
+    let workbook;
+    try {
+        workbook = XLSX.read(buffer, { type: "array" });
+    } catch (e) {
+        console.error("Gagal membaca file Excel:", e);
+        toast("File yang dipilih bukan file Excel yang valid atau rusak.", "error");
+        return false;
+    }
+
+    const parsedData = workbookToDatabase(workbook);
+
+    // Safety check: if parsed settings are empty or invalid, don't overwrite current database
+    if (!parsedData.settings || !parsedData.events) {
+        console.error("Format database tidak valid.");
+        toast("Format file Excel tidak sesuai dengan standar aplikasi.", "error");
+        return false;
+    }
+
+    database = parsedData;
     settings = normalizeSettings(database.settings);
     categories = normalizeCategories(database.categories);
     database.categories = categories;
@@ -1975,6 +2023,7 @@ function loadWorkbookBuffer(buffer, fileName, rerender = true) {
     currentDate = normalizeSavedDate(savedState.currentDate);
     if (!currentDate || !dateInAcademicYear(currentDate, activeStartYear)) currentDate = new Date(activeStartYear, 6, 1);
     saveLocalDataSnapshot();
+    databaseMissingOnBoot = false;
     if (rerender) {
         setupYearSelectors();
         setupFilters();
@@ -1988,6 +2037,7 @@ function loadWorkbookBuffer(buffer, fileName, rerender = true) {
         renderCurrentView();
         saveUiState();
     }
+    return true;
 }
 
 function workbookToDatabase(workbook) {
